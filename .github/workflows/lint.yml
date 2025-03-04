@@ -75,7 +75,7 @@ jobs:
           fi
       
       - name: SonarQube Analysis
-        uses: SonarSource/sonarcloud-github-action@v1.8 # SonarSource/sonarcloud-github-action v1.8
+        uses: SonarSource/sonarcloud-github-action@v5.0 # SonarSource/sonarcloud-github-action v1.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -145,7 +145,7 @@ jobs:
           fi
       
       - name: SonarQube Analysis
-        uses: SonarSource/sonarcloud-github-action@v1.8 # SonarSource/sonarcloud-github-action v1.8
+        uses: SonarSource/sonarcloud-github-action@v5.0 # SonarSource/sonarcloud-github-action v1.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
