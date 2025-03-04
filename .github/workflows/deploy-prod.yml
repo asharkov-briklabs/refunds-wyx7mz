@@ -33,7 +33,7 @@ jobs:
         run: echo "Deploying version ${{ github.event.release.tag_name || github.event.inputs.version }} to production"
       
       - name: Notify pending approval
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_DEPLOY_CHANNEL }}
           payload: '{"text":"Production deployment pending approval: ${{ github.event.release.tag_name || github.event.inputs.version }}"}'
@@ -185,7 +185,7 @@ jobs:
           deployment_version: '${{ env.IMAGE_TAG }}'
       
       - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_DEPLOY_CHANNEL }}
           payload: '{"text":"✅ Production deployment of ${{ env.IMAGE_TAG }} completed successfully!"}'
