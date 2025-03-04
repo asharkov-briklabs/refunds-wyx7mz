@@ -1,0 +1,357 @@
+{
+  "title": "Refunds Service Performance Dashboard",
+  "description": "Comprehensive view of performance metrics for the Refunds Service",
+  "layout_type": "ordered",
+  "is_read_only": false,
+  "template_variables": [
+    {
+      "name": "environment",
+      "prefix": "env",
+      "default": "production",
+      "available_values": ["development", "staging", "production"]
+    },
+    {
+      "name": "service",
+      "prefix": "service",
+      "default": "refund-service",
+      "available_values": [
+        "refund-api",
+        "refund-request-manager",
+        "gateway-integration",
+        "parameter-resolution",
+        "compliance-engine"
+      ]
+    }
+  ],
+  "widgets": [
+    {
+      "title": "API Performance Overview",
+      "type": "group",
+      "layout": {
+        "width": 12,
+        "height": 6,
+        "x": 0,
+        "y": 0
+      },
+      "subwidgets": [
+        {
+          "title": "API Response Time (P95)",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "refund_api.response_time.p95",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "$service"]
+            }
+          ],
+          "visual_settings": {
+            "y_axis_max": "auto",
+            "y_axis_include_zero": true,
+            "markers": [
+              {
+                "value": 500,
+                "label": "SLA Threshold",
+                "display_type": "error dashed"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Request Throughput",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "refund_api.request_count",
+              "aggregation": "sum",
+              "filter_by": ["$environment", "$service"],
+              "group_by": ["endpoint"]
+            }
+          ]
+        },
+        {
+          "title": "Error Rate",
+          "type": "timeseries",
+          "queries": [
+            {
+              "formula": "100 * (sum:refund_api.error_count{$environment,$service}.as_count() / sum:refund_api.request_count{$environment,$service}.as_count())",
+              "alias": "Error Percentage"
+            }
+          ],
+          "visual_settings": {
+            "y_axis_max": 5,
+            "y_axis_min": 0,
+            "markers": [
+              {
+                "value": 1,
+                "label": "Error Threshold",
+                "display_type": "error dashed"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "Gateway Integration Performance",
+      "type": "group",
+      "layout": {
+        "width": 12,
+        "height": 6,
+        "x": 0,
+        "y": 6
+      },
+      "subwidgets": [
+        {
+          "title": "Gateway Response Time",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "gateway_integration.response_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "gateway:stripe"],
+              "alias": "Stripe"
+            },
+            {
+              "metric": "gateway_integration.response_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "gateway:adyen"],
+              "alias": "Adyen"
+            },
+            {
+              "metric": "gateway_integration.response_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "gateway:fiserv"],
+              "alias": "Fiserv"
+            }
+          ]
+        },
+        {
+          "title": "Gateway Success Rate",
+          "type": "timeseries",
+          "queries": [
+            {
+              "formula": "100 * (sum:gateway_integration.success_count{$environment,gateway:stripe}.as_count() / sum:gateway_integration.request_count{$environment,gateway:stripe}.as_count())",
+              "alias": "Stripe"
+            },
+            {
+              "formula": "100 * (sum:gateway_integration.success_count{$environment,gateway:adyen}.as_count() / sum:gateway_integration.request_count{$environment,gateway:adyen}.as_count())",
+              "alias": "Adyen"
+            },
+            {
+              "formula": "100 * (sum:gateway_integration.success_count{$environment,gateway:fiserv}.as_count() / sum:gateway_integration.request_count{$environment,gateway:fiserv}.as_count())",
+              "alias": "Fiserv"
+            }
+          ],
+          "visual_settings": {
+            "y_axis_min": 95,
+            "y_axis_max": 100
+          }
+        },
+        {
+          "title": "Gateway Errors by Type",
+          "type": "toplist",
+          "queries": [
+            {
+              "metric": "gateway_integration.error_count",
+              "aggregation": "sum",
+              "filter_by": ["$environment"],
+              "group_by": ["gateway", "error_type"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Database Performance",
+      "type": "group",
+      "layout": {
+        "width": 12,
+        "height": 6,
+        "x": 0,
+        "y": 12
+      },
+      "subwidgets": [
+        {
+          "title": "MongoDB Query Latency",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "mongodb.query_time.p95",
+              "aggregation": "avg",
+              "filter_by": ["$environment"],
+              "group_by": ["collection"]
+            }
+          ]
+        },
+        {
+          "title": "MongoDB Connections",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "mongodb.connections.active",
+              "aggregation": "avg",
+              "filter_by": ["$environment"]
+            },
+            {
+              "metric": "mongodb.connections.available",
+              "aggregation": "avg",
+              "filter_by": ["$environment"]
+            }
+          ]
+        },
+        {
+          "title": "Redis Cache Hit Rate",
+          "type": "timeseries",
+          "queries": [
+            {
+              "formula": "100 * (sum:redis.cache.hits{$environment}.as_count() / (sum:redis.cache.hits{$environment}.as_count() + sum:redis.cache.misses{$environment}.as_count()))",
+              "alias": "Hit Rate"
+            }
+          ],
+          "visual_settings": {
+            "y_axis_min": 0,
+            "y_axis_max": 100
+          }
+        }
+      ]
+    },
+    {
+      "title": "Business Metrics",
+      "type": "group",
+      "layout": {
+        "width": 12,
+        "height": 6,
+        "x": 0,
+        "y": 18
+      },
+      "subwidgets": [
+        {
+          "title": "Refund Volume",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "refund.requests.count",
+              "aggregation": "sum",
+              "filter_by": ["$environment"],
+              "group_by": ["status"]
+            }
+          ]
+        },
+        {
+          "title": "Average Processing Time",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "refund.processing_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "refund_method:ORIGINAL_PAYMENT"],
+              "alias": "Original Payment"
+            },
+            {
+              "metric": "refund.processing_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "refund_method:BALANCE"],
+              "alias": "Balance"
+            },
+            {
+              "metric": "refund.processing_time",
+              "aggregation": "avg",
+              "filter_by": ["$environment", "refund_method:OTHER"],
+              "alias": "Other"
+            }
+          ]
+        },
+        {
+          "title": "Approval Workflow Duration",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "approval_workflow.duration",
+              "aggregation": "avg",
+              "filter_by": ["$environment"],
+              "group_by": ["workflow_type"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Resource Utilization",
+      "type": "group",
+      "layout": {
+        "width": 12,
+        "height": 6,
+        "x": 0,
+        "y": 24
+      },
+      "subwidgets": [
+        {
+          "title": "CPU Utilization",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "system.cpu.user",
+              "aggregation": "avg",
+              "filter_by": ["$environment"],
+              "group_by": ["service"]
+            }
+          ],
+          "visual_settings": {
+            "y_axis_min": 0,
+            "y_axis_max": 100,
+            "markers": [
+              {
+                "value": 70,
+                "label": "Scale Out Threshold",
+                "display_type": "warning dashed"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Memory Utilization",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "system.mem.used",
+              "aggregation": "avg",
+              "filter_by": ["$environment"],
+              "group_by": ["service"]
+            }
+          ]
+        },
+        {
+          "title": "ECS Container Metrics",
+          "type": "timeseries",
+          "queries": [
+            {
+              "metric": "aws.ecs.service.running",
+              "aggregation": "avg",
+              "filter_by": ["$environment"],
+              "group_by": ["service_name"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "time_range": {
+    "live_span": "1h",
+    "start": null,
+    "end": null
+  },
+  "notifications": {
+    "list": [
+      {
+        "handle": "@slack-refund-service-alerts"
+      },
+      {
+        "handle": "@email-platform-team"
+      }
+    ]
+  },
+  "refresh_settings": {
+    "is_paused": false,
+    "refresh_interval": 30
+  }
+}
