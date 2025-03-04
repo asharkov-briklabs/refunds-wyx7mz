@@ -63,7 +63,7 @@ jobs:
 
       - name: Login to Amazon ECR
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
       - name: Push Docker image to Amazon ECR
@@ -123,7 +123,7 @@ jobs:
 
       - name: Login to Amazon ECR
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
       - name: Push Docker image to Amazon ECR
