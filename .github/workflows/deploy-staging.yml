@@ -230,7 +230,7 @@ jobs:
       # Send notification to Slack
       - name: Notify Slack on Success
         if: success()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           payload: |
             {
@@ -295,7 +295,7 @@ jobs:
       
       - name: Notify Slack on Failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           payload: |
             {
