@@ -27,7 +27,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # Production stage: Serves the built application
-FROM nginx:1.25-alpine
+FROM nginx:1.27-alpine
 
 # Copy custom nginx configuration for handling React routing
 COPY nginx.conf /etc/nginx/conf.d/default.conf
