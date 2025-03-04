@@ -1,0 +1,171 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  backend-build-test:
+    name: Backend Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pylint bandit pytest pytest-cov pytest-httpx
+
+      - name: Static code analysis
+        run: |
+          pylint --fail-under=8.0 ./src/
+
+      - name: Security scanning
+        run: |
+          bandit -r ./src/ -f json -o bandit-results.json
+          if [ -s bandit-results.json ]; then
+            echo "Security issues found"
+            cat bandit-results.json
+            exit 1
+          fi
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest --cov=./src/ --cov-report=xml --cov-fail-under=90
+
+      - name: Run integration tests
+        run: |
+          pytest --integration ./tests/integration/
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+      - name: Build backend Docker image
+        run: |
+          docker build -t refunds-service-backend:${{ github.sha }} -f Dockerfile.backend .
+
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: aws-actions/amazon-ecr-login@v1
+        id: login-ecr
+
+      - name: Push Docker image to Amazon ECR
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: refunds-service-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag refunds-service-backend:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # Also tag with branch name
+          BRANCH_TAG=${GITHUB_REF#refs/heads/}
+          docker tag refunds-service-backend:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$BRANCH_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$BRANCH_TAG
+
+  frontend-build-test:
+    name: Frontend Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Verify TypeScript compilation
+        run: npm run type-check
+
+      - name: Security audit
+        run: npm audit --production
+
+      - name: Run unit tests with coverage
+        run: npm test -- --coverage --coverageThreshold='{"global":{"branches":90,"functions":90,"lines":90,"statements":90}}'
+
+      - name: Build frontend application
+        run: npm run build
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/coverage-final.json
+          fail_ci_if_error: true
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t refunds-service-frontend:${{ github.sha }} -f Dockerfile.frontend .
+
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: aws-actions/amazon-ecr-login@v1
+        id: login-ecr
+
+      - name: Push Docker image to Amazon ECR
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: refunds-service-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag refunds-service-frontend:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # Also tag with branch name
+          BRANCH_TAG=${GITHUB_REF#refs/heads/}
+          docker tag refunds-service-frontend:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$BRANCH_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$BRANCH_TAG
+
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.5.0'
+
+      - name: Initialize Terraform
+        run: terraform init -backend=false
+        working-directory: ./terraform
+
+      - name: Validate Terraform configurations
+        run: terraform validate
+        working-directory: ./terraform
+
+      - name: Create Terraform plans
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          # For each environment, create and store a plan
+          for env in dev test staging prod; do
+            echo "Creating plan for $env environment"
+            terraform plan -var-file="environments/$env.tfvars" -out="${env}.tfplan"
+          done
+        working-directory: ./terraform
