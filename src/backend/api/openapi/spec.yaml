@@ -1,0 +1,1206 @@
+openapi: 3.0.3
+info:
+  title: Refunds Service API
+  description: API for processing, managing, and tracking refunds across diverse payment methods and workflows
+  version: 1.0.0
+  contact:
+    name: Brik API Team
+    email: api-support@brik.com
+
+servers:
+  - url: https://api.brik.com/v1
+    description: Production server
+  - url: https://api-staging.brik.com/v1
+    description: Staging server
+  - url: https://api-dev.brik.com/v1
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /refunds:
+    post:
+      summary: Create refund request
+      description: Creates a new refund request for a transaction
+      operationId: createRefund
+      tags:
+        - Refunds
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequestCreate'
+      responses:
+        '201':
+          description: Refund request created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Business rule validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List refund requests
+      description: Retrieves a list of refund requests with optional filtering
+      operationId: listRefunds
+      tags:
+        - Refunds
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by refund status
+          schema:
+            type: string
+            enum:
+              - DRAFT
+              - SUBMITTED
+              - VALIDATION_FAILED
+              - PENDING_APPROVAL
+              - PROCESSING
+              - GATEWAY_PENDING
+              - GATEWAY_ERROR
+              - COMPLETED
+              - FAILED
+              - REJECTED
+              - CANCELED
+        - name: merchantId
+          in: query
+          description: Filter by merchant ID
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Start date for filtering (ISO 8601 format)
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: End date for filtering (ISO 8601 format)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of refund requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refunds/{refundId}:
+    get:
+      summary: Get refund details
+      description: Retrieves details of a specific refund request
+      operationId: getRefundById
+      tags:
+        - Refunds
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of the refund request
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Refund details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '404':
+          description: Refund not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update refund request
+      description: Updates a refund request before processing
+      operationId: updateRefund
+      tags:
+        - Refunds
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of the refund request
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequestUpdate'
+      responses:
+        '200':
+          description: Refund request updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Refund not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Business rule validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refunds/{refundId}/cancel:
+    put:
+      summary: Cancel refund request
+      description: Cancels a refund request that hasn't been processed yet
+      operationId: cancelRefund
+      tags:
+        - Refunds
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of the refund request
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancellation
+      responses:
+        '200':
+          description: Refund request cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Refund not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Cannot cancel refund in current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refunds/statistics:
+    get:
+      summary: Get refund statistics
+      description: Retrieves aggregate statistics about refunds
+      operationId: getRefundStatistics
+      tags:
+        - Refunds
+      parameters:
+        - name: merchantId
+          in: query
+          description: Filter by merchant ID
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Start date for filtering (ISO 8601 format)
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: End date for filtering (ISO 8601 format)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Refund statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundStatistics'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bank-accounts:
+    post:
+      summary: Create bank account
+      description: Creates a new bank account for refund processing
+      operationId: createBankAccount
+      tags:
+        - Bank Accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankAccountCreate'
+      responses:
+        '201':
+          description: Bank account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List bank accounts
+      description: Retrieves a list of bank accounts for a merchant
+      operationId: listBankAccounts
+      tags:
+        - Bank Accounts
+      parameters:
+        - name: merchantId
+          in: query
+          description: Merchant ID
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of bank accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /parameters:
+    get:
+      summary: List parameters
+      description: Retrieves a list of parameters for an entity
+      operationId: listParameters
+      tags:
+        - Parameters
+      parameters:
+        - name: entityType
+          in: query
+          description: Entity type (MERCHANT, ORGANIZATION, PROGRAM, BANK)
+          required: true
+          schema:
+            type: string
+            enum:
+              - MERCHANT
+              - ORGANIZATION
+              - PROGRAM
+              - BANK
+        - name: entityId
+          in: query
+          description: Entity ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of parameters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParameterResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create parameter
+      description: Creates a new parameter for an entity
+      operationId: createParameter
+      tags:
+        - Parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterCreate'
+      responses:
+        '201':
+          description: Parameter created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParameterResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reports:
+    post:
+      summary: Generate report
+      description: Generates a report based on specified parameters
+      operationId: generateReport
+      tags:
+        - Reporting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '200':
+          description: Report generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication service
+
+  schemas:
+    RefundRequestCreate:
+      type: object
+      required:
+        - transactionId
+        - amount
+        - reason
+        - refundMethod
+      properties:
+        transactionId:
+          type: string
+          description: ID of the original transaction
+        amount:
+          type: number
+          format: decimal
+          description: Refund amount
+        reason:
+          type: string
+          description: Reason for the refund
+        reasonCode:
+          type: string
+          description: Standardized reason code for the refund
+        refundMethod:
+          type: string
+          enum:
+            - ORIGINAL_PAYMENT
+            - BALANCE
+            - OTHER
+          description: Method to use for the refund
+        bankAccountId:
+          type: string
+          description: ID of bank account to use when refundMethod is OTHER
+        metadata:
+          type: object
+          description: Additional metadata for the refund
+        supportingDocuments:
+          type: array
+          items:
+            type: object
+            properties:
+              documentType:
+                type: string
+                description: Type of document
+              url:
+                type: string
+                description: URL of the document
+          description: Supporting documents for the refund
+
+    RefundRequestUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: decimal
+          description: Updated refund amount
+        reason:
+          type: string
+          description: Updated reason for the refund
+        reasonCode:
+          type: string
+          description: Updated standardized reason code
+        refundMethod:
+          type: string
+          enum:
+            - ORIGINAL_PAYMENT
+            - BALANCE
+            - OTHER
+          description: Updated method to use for the refund
+        bankAccountId:
+          type: string
+          description: Updated bank account ID when refundMethod is OTHER
+        metadata:
+          type: object
+          description: Updated metadata for the refund
+        supportingDocuments:
+          type: array
+          items:
+            type: object
+            properties:
+              documentType:
+                type: string
+              url:
+                type: string
+          description: Updated supporting documents
+
+    RefundResponse:
+      type: object
+      properties:
+        refundId:
+          type: string
+          description: Unique identifier for the refund
+        transactionId:
+          type: string
+          description: ID of the original transaction
+        merchantId:
+          type: string
+          description: ID of the merchant
+        customerId:
+          type: string
+          description: ID of the customer
+        amount:
+          type: number
+          format: decimal
+          description: Refund amount
+        currency:
+          type: string
+          description: Currency code (ISO 4217)
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - SUBMITTED
+            - VALIDATION_FAILED
+            - PENDING_APPROVAL
+            - PROCESSING
+            - GATEWAY_PENDING
+            - GATEWAY_ERROR
+            - COMPLETED
+            - FAILED
+            - REJECTED
+            - CANCELED
+          description: Current status of the refund
+        reason:
+          type: string
+          description: Reason for the refund
+        reasonCode:
+          type: string
+          description: Standardized reason code
+        refundMethod:
+          type: string
+          enum:
+            - ORIGINAL_PAYMENT
+            - BALANCE
+            - OTHER
+          description: Method used for the refund
+        bankAccountId:
+          type: string
+          description: ID of bank account used when refundMethod is OTHER
+        approvalStatus:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+            - ESCALATED
+          description: Status of approval workflow if applicable
+        gatewayReference:
+          type: string
+          description: Reference ID from payment gateway
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when refund was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when refund was last updated
+        processedAt:
+          type: string
+          format: date-time
+          description: Timestamp when refund was processed
+        completedAt:
+          type: string
+          format: date-time
+          description: Timestamp when refund was completed
+        estimatedCompletionDate:
+          type: string
+          format: date-time
+          description: Estimated completion date
+        metadata:
+          type: object
+          description: Additional metadata for the refund
+        supportingDocuments:
+          type: array
+          items:
+            type: object
+            properties:
+              documentType:
+                type: string
+              url:
+                type: string
+          description: Supporting documents for the refund
+        statusHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+              changedBy:
+                type: string
+          description: History of status changes
+        processingErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              errorCode:
+                type: string
+              errorMessage:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+          description: Processing errors if any
+
+    RefundListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundResponse'
+        pagination:
+          type: object
+          properties:
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            currentPage:
+              type: integer
+            pageSize:
+              type: integer
+
+    RefundStatistics:
+      type: object
+      properties:
+        totalRefunds:
+          type: integer
+          description: Total number of refunds
+        totalAmount:
+          type: number
+          format: decimal
+          description: Total refund amount
+        averageAmount:
+          type: number
+          format: decimal
+          description: Average refund amount
+        statusCounts:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Count of refunds by status
+        methodCounts:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Count of refunds by method
+        averageProcessingTime:
+          type: number
+          description: Average processing time in hours
+        period:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+          description: Period for which statistics are calculated
+
+    BankAccountCreate:
+      type: object
+      required:
+        - merchantId
+        - accountHolderName
+        - accountType
+        - routingNumber
+        - accountNumber
+      properties:
+        merchantId:
+          type: string
+          description: ID of the merchant owning this account
+        accountHolderName:
+          type: string
+          description: Name of the account holder
+        accountType:
+          type: string
+          enum:
+            - CHECKING
+            - SAVINGS
+          description: Type of bank account
+        routingNumber:
+          type: string
+          description: Bank routing number
+        accountNumber:
+          type: string
+          description: Bank account number
+        isDefault:
+          type: boolean
+          default: false
+          description: Whether this is the default account for refunds
+        initiateVerification:
+          type: boolean
+          default: false
+          description: Whether to initiate verification immediately
+        verificationMethod:
+          type: string
+          enum:
+            - MICRO_DEPOSIT
+            - INSTANT_VERIFICATION
+          description: Method to use for verification
+
+    BankAccountResponse:
+      type: object
+      properties:
+        accountId:
+          type: string
+          description: Unique identifier for the bank account
+        merchantId:
+          type: string
+          description: ID of the merchant owning this account
+        accountHolderName:
+          type: string
+          description: Name of the account holder
+        accountType:
+          type: string
+          enum:
+            - CHECKING
+            - SAVINGS
+          description: Type of bank account
+        routingNumber:
+          type: string
+          description: Bank routing number
+        accountNumberLast4:
+          type: string
+          description: Last 4 digits of account number
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+          description: Status of the bank account
+        verificationStatus:
+          type: string
+          enum:
+            - UNVERIFIED
+            - PENDING
+            - VERIFIED
+            - FAILED
+          description: Verification status of the account
+        verificationMethod:
+          type: string
+          enum:
+            - MICRO_DEPOSIT
+            - INSTANT_VERIFICATION
+          description: Method used for verification
+        isDefault:
+          type: boolean
+          description: Whether this is the default account for refunds
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when account was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when account was last updated
+
+    BankAccountListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankAccountResponse'
+        pagination:
+          type: object
+          properties:
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            currentPage:
+              type: integer
+            pageSize:
+              type: integer
+
+    ParameterCreate:
+      type: object
+      required:
+        - entityType
+        - entityId
+        - parameterName
+        - parameterValue
+      properties:
+        entityType:
+          type: string
+          enum:
+            - MERCHANT
+            - ORGANIZATION
+            - PROGRAM
+            - BANK
+          description: Type of entity this parameter applies to
+        entityId:
+          type: string
+          description: ID of the entity
+        parameterName:
+          type: string
+          description: Name of the parameter
+        parameterValue:
+          type: object
+          description: Value of the parameter
+        effectiveDate:
+          type: string
+          format: date-time
+          description: Date when parameter becomes effective
+        expirationDate:
+          type: string
+          format: date-time
+          description: Date when parameter expires
+        description:
+          type: string
+          description: Description of the parameter
+        overridable:
+          type: boolean
+          default: true
+          description: Whether this parameter can be overridden at lower levels
+
+    ParameterResponse:
+      type: object
+      properties:
+        parameterName:
+          type: string
+          description: Name of the parameter
+        parameterValue:
+          type: object
+          description: Value of the parameter
+        entityType:
+          type: string
+          enum:
+            - MERCHANT
+            - ORGANIZATION
+            - PROGRAM
+            - BANK
+          description: Type of entity this parameter applies to
+        entityId:
+          type: string
+          description: ID of the entity
+        effectiveDate:
+          type: string
+          format: date-time
+          description: Date when parameter becomes effective
+        expirationDate:
+          type: string
+          format: date-time
+          description: Date when parameter expires
+        description:
+          type: string
+          description: Description of the parameter
+        overridable:
+          type: boolean
+          description: Whether this parameter can be overridden at lower levels
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when parameter was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when parameter was last updated
+        createdBy:
+          type: string
+          description: ID of user who created the parameter
+        version:
+          type: integer
+          description: Version of the parameter
+
+    ReportRequest:
+      type: object
+      required:
+        - reportType
+        - parameters
+      properties:
+        reportType:
+          type: string
+          description: Type of report to generate
+        parameters:
+          type: object
+          description: Parameters for the report
+        format:
+          type: string
+          enum:
+            - JSON
+            - CSV
+            - EXCEL
+            - PDF
+          default: JSON
+          description: Format of the report
+
+    ReportResponse:
+      type: object
+      properties:
+        executionId:
+          type: string
+          description: Unique identifier for the report execution
+        reportType:
+          type: string
+          description: Type of report generated
+        parameters:
+          type: object
+          description: Parameters used for the report
+        format:
+          type: string
+          enum:
+            - JSON
+            - CSV
+            - EXCEL
+            - PDF
+          description: Format of the report
+        data:
+          type: array
+          items:
+            type: object
+          description: Report data
+        generatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when report was generated
+        rowCount:
+          type: integer
+          description: Number of rows in the report
+        downloadUrl:
+          type: string
+          description: URL to download the report (for non-JSON formats)
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error details
+        traceId:
+          type: string
+          description: Trace ID for debugging
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when error occurred
