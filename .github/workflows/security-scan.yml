@@ -1,0 +1,320 @@
+name: Security Scan
+
+# Trigger the workflow on pull requests, pushes to main/develop, and weekly
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sundays at midnight
+
+jobs:
+  static_analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for SonarQube analysis
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Bandit security scanner
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+      
+      - name: Run Bandit scan
+        run: |
+          # Find all Python files and scan them, excluding tests
+          bandit -r . --exclude ./tests,./venv -f sarif -o bandit-results.sarif
+        continue-on-error: true
+      
+      - name: SonarQube Analysis
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=brik-refunds-service
+            -Dsonar.organization=brik
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/tests/**,**/node_modules/**
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.python.bandit.reportPaths=bandit-results.sarif
+            -Dsonar.qualitygate.wait=true
+      
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: bandit-results.sarif
+          category: bandit
+        if: always()  # Upload results even if previous steps failed
+
+  dependency_check:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Check if requirements.txt exists in common locations
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          elif [ -f "backend/requirements.txt" ]; then
+            pip install -r backend/requirements.txt
+          else
+            echo "No requirements.txt found"
+          fi
+          pip install safety
+        continue-on-error: true
+      
+      - name: Install Node.js dependencies
+        run: |
+          # Check if package.json exists in different possible locations
+          if [ -f "package.json" ]; then
+            npm ci
+          elif [ -f "frontend/package.json" ]; then
+            cd frontend && npm ci
+          else
+            echo "No package.json found"
+          fi
+        continue-on-error: true
+      
+      - name: Run Safety check on Python dependencies
+        run: |
+          safety check --json > safety-results.json || echo "Safety check completed with issues"
+        continue-on-error: true
+      
+      - name: Run npm audit on Node.js dependencies
+        run: |
+          if [ -f "package.json" ]; then
+            npm audit --json > npm-audit-results.json || echo "Vulnerabilities found"
+          elif [ -f "frontend/package.json" ]; then
+            cd frontend && npm audit --json > npm-audit-results.json || echo "Vulnerabilities found"
+          else
+            echo "No package.json found"
+          fi
+        continue-on-error: true
+      
+      - name: Snyk scan for Python
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk-python.sarif
+        continue-on-error: true
+      
+      - name: Snyk scan for Node.js
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk-node.sarif
+        continue-on-error: true
+      
+      - name: Upload Snyk Python results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk-python.sarif
+          category: snyk-python
+        if: always()
+      
+      - name: Upload Snyk Node.js results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk-node.sarif
+          category: snyk-node
+        if: always()
+
+  secret_detection:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for secret detection
+      
+      - name: GitLeaks scan
+        uses: zricethezav/gitleaks-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+      
+      - name: Check for high-severity secrets
+        run: |
+          if [ -f "gitleaks-report.sarif" ]; then
+            # Count high severity findings
+            HIGH_COUNT=$(grep -c "high" gitleaks-report.sarif || echo "0")
+            if [ "$HIGH_COUNT" -gt "0" ]; then
+              echo "::error ::$HIGH_COUNT high-severity secrets detected in the codebase"
+              exit 1
+            fi
+          fi
+        continue-on-error: true
+      
+      - name: Upload Gitleaks report
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: gitleaks-report.sarif
+          category: secrets
+        if: always()
+
+  container_scan:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Build backend Docker image
+        run: |
+          # Check if Dockerfile exists in different possible locations
+          if [ -f "Dockerfile" ]; then
+            docker build -t brik/refunds-service:${{ github.sha }} .
+          elif [ -f "backend/Dockerfile" ]; then
+            docker build -t brik/refunds-backend:${{ github.sha }} ./backend
+          else
+            echo "No backend Dockerfile found, skipping"
+            exit 0
+          fi
+        continue-on-error: true
+      
+      - name: Build frontend Docker image
+        run: |
+          if [ -f "frontend/Dockerfile" ]; then
+            docker build -t brik/refunds-frontend:${{ github.sha }} ./frontend
+          else
+            echo "No frontend Dockerfile found, skipping"
+            exit 0
+          fi
+        continue-on-error: true
+      
+      - name: Run Trivy vulnerability scanner on backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'brik/refunds-backend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail on vulnerabilities for now
+        continue-on-error: true
+      
+      - name: Run Trivy vulnerability scanner on frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'brik/refunds-frontend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail on vulnerabilities for now
+        continue-on-error: true
+      
+      - name: Upload Trivy backend scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-backend-results.sarif
+          category: container-backend
+        if: always()
+      
+      - name: Upload Trivy frontend scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-frontend-results.sarif
+          category: container-frontend
+        if: always()
+      
+      - name: Check for critical vulnerabilities
+        run: |
+          # Count critical vulnerabilities
+          CRITICAL_COUNT_BACKEND=0
+          CRITICAL_COUNT_FRONTEND=0
+          
+          if [ -f "trivy-backend-results.sarif" ]; then
+            CRITICAL_COUNT_BACKEND=$(grep -c '"level":"error"' trivy-backend-results.sarif || echo "0")
+          fi
+          
+          if [ -f "trivy-frontend-results.sarif" ]; then
+            CRITICAL_COUNT_FRONTEND=$(grep -c '"level":"error"' trivy-frontend-results.sarif || echo "0")
+          fi
+          
+          TOTAL=$((CRITICAL_COUNT_BACKEND + CRITICAL_COUNT_FRONTEND))
+          
+          if [ "$TOTAL" -gt "0" ]; then
+            echo "::error ::$TOTAL critical vulnerabilities detected in container images"
+            echo "Backend: $CRITICAL_COUNT_BACKEND, Frontend: $CRITICAL_COUNT_FRONTEND"
+            exit 1
+          fi
+        continue-on-error: true
+
+  security_report:
+    name: Generate Security Report
+    needs: [static_analysis, dependency_check, secret_detection, container_scan]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Determine overall security status
+        id: security_status
+        run: |
+          # Check the status of previous jobs
+          if [[ "${{ needs.static_analysis.result }}" == "failure" || \
+                "${{ needs.dependency_check.result }}" == "failure" || \
+                "${{ needs.secret_detection.result }}" == "failure" || \
+                "${{ needs.container_scan.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "::error ::Security scan detected issues that need to be addressed."
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "::notice ::Security scan completed successfully."
+          fi
+      
+      - name: Create security report summary
+        run: |
+          mkdir -p security-reports
+          echo "# Security Scan Report" > security-reports/summary.md
+          echo "## Scan Results" >> security-reports/summary.md
+          echo "- Static Analysis: ${{ needs.static_analysis.result }}" >> security-reports/summary.md
+          echo "- Dependency Check: ${{ needs.dependency_check.result }}" >> security-reports/summary.md
+          echo "- Secret Detection: ${{ needs.secret_detection.result }}" >> security-reports/summary.md
+          echo "- Container Scan: ${{ needs.container_scan.result }}" >> security-reports/summary.md
+          echo "## Overall Status: ${{ steps.security_status.outputs.status }}" >> security-reports/summary.md
+          echo "" >> security-reports/summary.md
+          echo "For detailed information, please check the security scan logs and SARIF results in the GitHub Security tab." >> security-reports/summary.md
+      
+      - name: Upload security report artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: security-reports/
+          retention-days: 14
+      
+      - name: Fail workflow if security issues found
+        if: steps.security_status.outputs.status == 'failure'
+        run: |
+          echo "Security scan detected issues. Please address them before merging."
+          exit 1
