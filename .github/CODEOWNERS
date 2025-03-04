@@ -1,0 +1,71 @@
+# Automatically assigns reviewers to pull requests based on files being changed
+# Format: file-pattern @user-or-team
+
+# Default ownership for all files in the repository
+* @platform-team
+
+# Core Services
+# =============
+
+# Core Refund Request Manager service ownership
+src/backend/services/refund-request-manager/** @refund-core-team @payments-team
+
+# Payment Method Handler service ownership
+src/backend/services/payment-method-handler/** @payments-team
+
+# Approval Workflow Engine service ownership
+src/backend/services/approval-workflow-engine/** @workflow-team @refund-core-team
+
+# Compliance Engine service ownership
+src/backend/services/compliance-engine/** @compliance-team @security-team
+
+# Gateway Integration service ownership
+src/backend/services/gateway-integration/** @payments-team @integrations-team
+
+# Parameter Resolution service ownership
+src/backend/services/parameter-resolution/** @configuration-team @refund-core-team
+
+# Bank Account Manager service ownership - requires security team review due to sensitive data
+src/backend/services/bank-account-manager/** @payments-team @security-team
+
+# Notification Service ownership
+src/backend/services/notification-service/** @notifications-team
+
+# Reporting & Analytics Engine ownership
+src/backend/services/reporting-analytics/** @data-team @analytics-team
+
+# Frontend code ownership
+src/web/** @frontend-team
+
+# Infrastructure & Configuration
+# =============================
+
+# Infrastructure code ownership
+infrastructure/** @devops-team @security-team
+
+# GitHub configuration ownership
+.github/** @devops-team @platform-team
+
+# Configuration files ownership
+src/backend/config/** @platform-team @security-team
+
+# Common & Shared Components
+# =========================
+
+# Common utilities and shared code ownership
+src/backend/common/** @platform-team @architecture-team
+
+# External service integrations ownership
+src/backend/integrations/** @integrations-team
+
+# Database models and repositories ownership
+src/backend/database/** @data-team @refund-core-team
+
+# Testing & Security
+# =================
+
+# Test files ownership
+**.test.ts @quality-team
+
+# Security-related code ownership
+src/backend/**/security/** @security-team
