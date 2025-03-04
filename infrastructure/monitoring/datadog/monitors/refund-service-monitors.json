@@ -1,0 +1,369 @@
+{
+  "monitors": [
+    {
+      "name": "Refund Service - API Response Time",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:refund_service.api.response_time{env:production} by {service} > 500",
+      "message": "API response time exceeds 500ms threshold. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 500,
+          "warning": 300
+        },
+        "notify_no_data": true,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": 10,
+        "renotify_interval": 60,
+        "escalation_message": "API response time still exceeding threshold! Please investigate immediately."
+      },
+      "priority": 1
+    },
+    {
+      "name": "Refund Service - API Error Rate",
+      "type": "metric alert",
+      "query": "sum(last_5m):sum:refund_service.api.errors{env:production} by {service}.as_count() / sum:refund_service.api.requests{env:production} by {service}.as_count() * 100 > 1",
+      "message": "API error rate exceeds 1% threshold. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 1,
+          "warning": 0.5
+        },
+        "notify_no_data": true,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": 10,
+        "renotify_interval": 60,
+        "escalation_message": "API error rate still exceeding threshold! Please investigate immediately."
+      },
+      "priority": 1
+    },
+    {
+      "name": "Refund Service - Gateway Integration Availability",
+      "type": "metric alert",
+      "query": "min(last_5m):avg:refund_service.gateway.availability{env:production} by {gateway} * 100 < 99.9",
+      "message": "Gateway integration availability below 99.9% threshold. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 99.9,
+          "warning": 99.95
+        },
+        "notify_no_data": true,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": 10,
+        "renotify_interval": 60,
+        "escalation_message": "Gateway integration availability still below threshold! Please investigate immediately."
+      },
+      "priority": 1
+    },
+    {
+      "name": "Refund Service - Gateway Integration Response Time",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:refund_service.gateway.response_time{env:production} by {gateway} > 2000",
+      "message": "Gateway integration response time exceeds 2s threshold. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 2000,
+          "warning": 1000
+        },
+        "notify_no_data": true,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": 10,
+        "renotify_interval": 60,
+        "escalation_message": "Gateway integration response time still exceeding threshold! Please investigate immediately."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Database Connection Pool Saturation",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:refund_service.db.connection_pool.used{env:production} / avg:refund_service.db.connection_pool.total{env:production} * 100 > 80",
+      "message": "Database connection pool utilization exceeds 80%. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 80,
+          "warning": 70
+        },
+        "notify_no_data": true,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": 10,
+        "renotify_interval": 120,
+        "escalation_message": "Database connection pool still at high utilization! Consider increasing pool size."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - SQS Queue Depth",
+      "type": "metric alert",
+      "query": "avg(last_10m):max:aws.sqs.approximate_number_of_messages_visible{queue_name:refund_processing_queue,env:production} > 1000",
+      "message": "SQS Queue depth exceeds 1000 messages. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 1000,
+          "warning": 500
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 120,
+        "no_data_timeframe": null,
+        "renotify_interval": 180,
+        "escalation_message": "SQS Queue depth still high! Please investigate processing bottlenecks."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Redis Cache Hit Rate",
+      "type": "metric alert",
+      "query": "avg(last_15m):avg:refund_service.redis.hit_rate{env:production} * 100 < 80",
+      "message": "Redis cache hit rate below 80%. Cache efficiency might be degraded. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:low"],
+      "options": {
+        "thresholds": {
+          "critical": 80,
+          "warning": 85
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": true,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 300,
+        "no_data_timeframe": null,
+        "renotify_interval": 0,
+        "escalation_message": ""
+      },
+      "priority": 3
+    },
+    {
+      "name": "Refund Service - Parameter Resolution Time",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:refund_service.parameter_resolution.duration{env:production} > 100",
+      "message": "Parameter resolution time exceeds 100ms threshold. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 100,
+          "warning": 70
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": null,
+        "renotify_interval": 240,
+        "escalation_message": ""
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Refund SLA Compliance",
+      "type": "metric alert",
+      "query": "avg(last_1h):avg:refund_service.refund.completion_time{env:production} / 3600 / 24 > 1",
+      "message": "Refund average completion time exceeding 24 hour SLA. @slack-refund-alerts @email-business-team",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium", "business_impact:high"],
+      "options": {
+        "thresholds": {
+          "critical": 1,
+          "warning": 0.8
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": true,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 3600,
+        "no_data_timeframe": null,
+        "renotify_interval": 86400,
+        "escalation_message": "Refund SLA violations continuing. Business impact increasing."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Approval Workflow Response Time",
+      "type": "metric alert",
+      "query": "avg(last_15m):avg:refund_service.approval.response_time{env:production} > 4",
+      "message": "Approval workflows average response time exceeding 4 hours. @slack-refund-alerts @email-business-team",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium", "business_impact:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 4,
+          "warning": 2
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": true,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 900,
+        "no_data_timeframe": null,
+        "renotify_interval": 14400,
+        "escalation_message": ""
+      },
+      "priority": 3
+    },
+    {
+      "name": "Refund Service - Container Memory Usage",
+      "type": "metric alert",
+      "query": "avg(last_10m):avg:docker.mem.rss{service:refund-service,env:production} by {container_name} / avg:docker.mem.limit{service:refund-service,env:production} by {container_name} * 100 > 85",
+      "message": "Container memory usage exceeding 85% of limit. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 85,
+          "warning": 80
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": null,
+        "renotify_interval": 300,
+        "escalation_message": "Container memory usage still high. Consider increasing container memory limit or investigating memory leaks."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Container CPU Usage",
+      "type": "metric alert",
+      "query": "avg(last_10m):avg:docker.cpu.usage{service:refund-service,env:production} by {container_name} > 80",
+      "message": "Container CPU usage exceeding 80%. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 80,
+          "warning": 70
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": null,
+        "renotify_interval": 300,
+        "escalation_message": "Container CPU usage still high. Consider scaling horizontally."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Circuit Breaker Open State",
+      "type": "metric alert",
+      "query": "sum(last_5m):sum:refund_service.circuit_breaker.open{env:production} by {gateway}.as_count() > 0",
+      "message": "Circuit breaker in OPEN state for one or more payment gateways. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 0,
+          "warning": null
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": null,
+        "renotify_interval": 600,
+        "escalation_message": "Circuit breaker still in OPEN state! Gateway communication issues continuing."
+      },
+      "priority": 1
+    },
+    {
+      "name": "Refund Service - DLQ Message Count",
+      "type": "metric alert",
+      "query": "sum(last_10m):sum:aws.sqs.approximate_number_of_messages_visible{queue_name:refund-dlq,env:production}.as_count() > 0",
+      "message": "Messages detected in Refund Service Dead Letter Queue. @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:medium"],
+      "options": {
+        "thresholds": {
+          "critical": 0,
+          "warning": null
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": false,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 60,
+        "no_data_timeframe": null,
+        "renotify_interval": 1800,
+        "escalation_message": "Messages still present in DLQ and not being processed."
+      },
+      "priority": 2
+    },
+    {
+      "name": "Refund Service - Failed Refund Rate",
+      "type": "metric alert",
+      "query": "sum(last_30m):sum:refund_service.refund.status{status:failed,env:production}.as_count() / sum:refund_service.refund.status{env:production}.as_count() * 100 > 5",
+      "message": "Failed refund rate exceeds 5%. @pagerduty-refund-service-team @slack-refund-alerts @email-business-team",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high", "business_impact:high"],
+      "options": {
+        "thresholds": {
+          "critical": 5,
+          "warning": 2
+        },
+        "notify_no_data": false,
+        "notify_audit": false,
+        "require_full_window": true,
+        "new_host_delay": 300,
+        "include_tags": true,
+        "evaluation_delay": 300,
+        "no_data_timeframe": null,
+        "renotify_interval": 3600,
+        "escalation_message": "Failed refund rate still above threshold. Potential systemic issue."
+      },
+      "priority": 1
+    },
+    {
+      "name": "Refund Service - Host Health",
+      "type": "service check",
+      "query": "\"aws.ecs.fargate.health\".over(\"service:refund-service\").by(\"container_name\").last(3).count_by_status()",
+      "message": "Health check failed for Refund Service ECS tasks. @pagerduty-refund-service-team @slack-refund-alerts",
+      "tags": ["service:refund-service", "environment:production", "team:payments", "criticality:high"],
+      "options": {
+        "thresholds": {
+          "critical": 1,
+          "warning": 1,
+          "ok": 1
+        },
+        "notify_no_data": true,
+        "new_host_delay": 300,
+        "no_data_timeframe": 10,
+        "renotify_interval": 60,
+        "escalation_message": "Refund Service containers still unhealthy! Please investigate immediately."
+      },
+      "priority": 1
+    }
+  ]
+}
