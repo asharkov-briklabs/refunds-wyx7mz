@@ -307,7 +307,7 @@ jobs:
           echo "For detailed information, please check the security scan logs and SARIF results in the GitHub Security tab." >> security-reports/summary.md
       
       - name: Upload security report artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-reports
           path: security-reports/
