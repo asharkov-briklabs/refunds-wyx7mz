@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.11-slim as build
+FROM python:3.13-slim as build
 
 # Set working directory
 ARG APP_HOME=/app
