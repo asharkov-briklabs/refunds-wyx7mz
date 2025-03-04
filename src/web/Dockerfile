@@ -1,5 +1,5 @@
 # Build stage: Compiles the React application
-FROM node:18-alpine as build
+FROM node:23-alpine as build
 
 # Set working directory for all build operations
 WORKDIR /app
