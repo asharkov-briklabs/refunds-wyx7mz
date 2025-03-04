@@ -67,7 +67,7 @@
     "jest-mock": "^29.5.0",
     "msw": "^1.0.0",
     "postcss-flexbugs-fixes": "^5.0.2",
-    "postcss-import": "^15.1.0",
+    "postcss-import": "^16.1.0",
     "postcss-loader": "^7.0.0",
     "postcss-nested": "^6.0.0",
     "postcss-preset-env": "^8.0.1",
