@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: refunds-api
+    ports:
+      - "3000:3000"
+    environment:
+      - PYTHON_ENV=development
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongodb:27017/refunds
+      - REDIS_URI=redis://redis:6379
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - STRIPE_API_KEY=sk_test_mock
+      - STRIPE_WEBHOOK_SECRET=whsec_test_mock
+      - STRIPE_API_VERSION=2023-08-16
+      - ADYEN_API_KEY=AQEyhmfxLI7GYBRGw0m/n3Q5qf3VaY9UCJ14XWZE03G/k2NFikzVGXMMkBoRwEVuJ9zCJg==
+      - ADYEN_MERCHANT_ACCOUNT=BrikAccount
+      - AUTH0_DOMAIN=brik-dev.us.auth0.com
+      - AUTH0_AUDIENCE=https://api.brik.com
+    volumes:
+      - ./:/app
+      - /app/.venv
+    depends_on:
+      - mongodb
+      - redis
+      - localstack
+      - stripe-mock
+    command: python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 3000
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: refunds-worker
+    environment:
+      - PYTHON_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/refunds
+      - REDIS_URI=redis://redis:6379
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - STRIPE_API_KEY=sk_test_mock
+      - STRIPE_API_VERSION=2023-08-16
+      - ADYEN_API_KEY=AQEyhmfxLI7GYBRGw0m/n3Q5qf3VaY9UCJ14XWZE03G/k2NFikzVGXMMkBoRwEVuJ9zCJg==
+      - ADYEN_MERCHANT_ACCOUNT=BrikAccount
+    volumes:
+      - ./:/app
+      - /app/.venv
+    depends_on:
+      - mongodb
+      - redis
+      - localstack
+      - stripe-mock
+    command: python -m app.worker.main
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: refunds-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=refunds
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: refunds-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: refunds-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs,kms,secretsmanager
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: refunds-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+  stripe-mock:
+    image: stripemock/stripe-mock:latest
+    container_name: refunds-stripe-mock
+    ports:
+      - "12111:12111"
+    restart: unless-stopped
+    networks:
+      - refunds-network
+
+volumes:
+  mongodb_data:
+    name: refunds-mongodb-data
+  redis_data:
+    name: refunds-redis-data
+  localstack_data:
+    name: refunds-localstack-data
+
+networks:
+  refunds-network:
+    name: refunds-network
+    driver: bridge
