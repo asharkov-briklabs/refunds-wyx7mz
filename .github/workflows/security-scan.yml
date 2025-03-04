@@ -51,7 +51,7 @@ jobs:
             -Dsonar.qualitygate.wait=true
       
       - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: bandit-results.sarif
           category: bandit
@@ -134,14 +134,14 @@ jobs:
         continue-on-error: true
       
       - name: Upload Snyk Python results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-python.sarif
           category: snyk-python
         if: always()
       
       - name: Upload Snyk Node.js results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-node.sarif
           category: snyk-node
@@ -176,7 +176,7 @@ jobs:
         continue-on-error: true
       
       - name: Upload Gitleaks report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif
           category: secrets
@@ -233,14 +233,14 @@ jobs:
         continue-on-error: true
       
       - name: Upload Trivy backend scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-backend-results.sarif
           category: container-backend
         if: always()
       
       - name: Upload Trivy frontend scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-frontend-results.sarif
           category: container-frontend
