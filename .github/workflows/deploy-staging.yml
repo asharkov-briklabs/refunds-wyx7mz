@@ -1,0 +1,351 @@
+name: Deploy to Staging
+
+# This workflow deploys the Refunds Service to the staging environment using a Blue/Green 
+# deployment strategy. It builds Docker images, pushes them to ECR, and uses Terraform
+# to update the staging infrastructure with a Blue/Green deployment strategy.
+
+on:
+  # Trigger when the test workflow completes successfully
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
+    branches:
+      - main
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      confirm_deployment:
+        description: 'Type "yes" to confirm you want to deploy to staging'
+        required: true
+        default: 'no'
+
+env:
+  AWS_REGION: us-west-2  # Replace with your AWS region
+  ECR_REPOSITORY_PREFIX: brik-refunds-service
+  TF_WORKING_DIR: ./terraform/staging
+  TF_VERSION: 1.5.0
+  SLACK_CHANNEL: "#deployments"
+  # Maximum timeout minutes for deployment completion
+  DEPLOYMENT_TIMEOUT_MINUTES: 30
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    # Run when tests pass or manual trigger with confirmation
+    if: |
+      (github.event.workflow_run.conclusion == 'success') || 
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_deployment == 'yes')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      # Get version information for tagging
+      - name: Set version information
+        id: version
+        run: |
+          # Get short SHA
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          # Get semver tag if available (falls back to short SHA)
+          SEMVER=$(git describe --tags --match "v*" 2>/dev/null || echo "$SHORT_SHA")
+          echo "semver=$SEMVER" >> $GITHUB_OUTPUT
+          
+          # Create build identifier with timestamp
+          BUILD_ID="${SEMVER}-${SHORT_SHA}-$(date +'%Y%m%d%H%M%S')"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+      
+      # Build and push API service
+      - name: Build and push API Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-api:${{ steps.version.outputs.build_id }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-api:${{ steps.version.outputs.semver }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Build and push Worker service
+      - name: Build and push Worker Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/worker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-worker:${{ steps.version.outputs.build_id }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-worker:${{ steps.version.outputs.semver }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Build and push Web service
+      - name: Build and push Web Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-web:${{ steps.version.outputs.build_id }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-web:${{ steps.version.outputs.semver }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PREFIX }}-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Set up Terraform and deploy infrastructure
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+      
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan \
+            -var="api_image_tag=${{ steps.version.outputs.build_id }}" \
+            -var="worker_image_tag=${{ steps.version.outputs.build_id }}" \
+            -var="web_image_tag=${{ steps.version.outputs.build_id }}" \
+            -var="deployment_id=$(date +%s)" \
+            -out=tfplan
+      
+      - name: Terraform Apply with Blue/Green Deployment
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          # Apply terraform to update the infrastructure with new task definitions
+          terraform apply -auto-approve tfplan
+          
+          # Extract the new deployment ID (assuming it's an output from Terraform)
+          DEPLOYMENT_ID=$(terraform output -raw deployment_id || echo "")
+          
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "Warning: No deployment ID found in Terraform output. Using latest deployment."
+            # Get the latest deployment ID
+            DEPLOYMENT_ID=$(aws deploy list-deployments --application-name brik-refunds-service --deployment-group-name staging --region ${{ env.AWS_REGION }} --include-only-statuses "InProgress" --query "deployments[0]" --output text)
+            
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "Error: Could not find an active deployment. Please check AWS CodeDeploy console."
+              exit 1
+            fi
+          fi
+          
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+          echo "Deployment ID: $DEPLOYMENT_ID"
+      
+      - name: Wait for Deployment Completion
+        timeout-minutes: ${{ env.DEPLOYMENT_TIMEOUT_MINUTES }}
+        run: |
+          echo "Waiting for Blue/Green deployment to complete (timeout: ${{ env.DEPLOYMENT_TIMEOUT_MINUTES }} minutes)..."
+          aws deploy wait deployment-successful --deployment-id ${{ env.DEPLOYMENT_ID }} --region ${{ env.AWS_REGION }}
+          echo "Deployment completed successfully!"
+      
+      - name: Run Smoke Tests
+        id: smoke-tests
+        run: |
+          # Run smoke tests against the staging environment
+          echo "Running smoke tests against staging environment..."
+          ./scripts/run-smoke-tests.sh --environment=staging
+          
+          # Check if tests passed
+          if [ $? -eq 0 ]; then
+            echo "Smoke tests passed!"
+            echo "smoke_tests_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "Smoke tests failed!"
+            echo "smoke_tests_status=failure" >> $GITHUB_OUTPUT
+            exit 1  # This will trigger the automatic rollback
+          fi
+      
+      - name: Run Performance Tests
+        id: performance-tests
+        if: steps.smoke-tests.outputs.smoke_tests_status == 'success'
+        run: |
+          # Run performance tests
+          echo "Running performance tests against staging environment..."
+          ./scripts/run-performance-tests.sh --environment=staging
+          
+          # Check if tests passed performance thresholds
+          if [ $? -eq 0 ]; then
+            echo "Performance tests passed!"
+            echo "performance_tests_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "Performance tests failed to meet thresholds!"
+            echo "performance_tests_status=failure" >> $GITHUB_OUTPUT
+            exit 1  # This will trigger the automatic rollback
+          fi
+      
+      # Automatic rollback happens on job failure via AWS CodeDeploy
+      - name: Handle Rollback on Failure
+        if: failure()
+        run: |
+          echo "Deployment failed! Triggering automatic rollback..."
+          
+          if [ -n "${{ env.DEPLOYMENT_ID }}" ]; then
+            aws deploy stop-deployment --deployment-id ${{ env.DEPLOYMENT_ID }} --auto-rollback-enabled --region ${{ env.AWS_REGION }}
+            
+            # Wait for rollback to complete
+            echo "Waiting for rollback to complete..."
+            sleep 60  # Give AWS some time to start the rollback
+            
+            # Get the rollback deployment ID
+            ROLLBACK_ID=$(aws deploy list-deployments --application-name brik-refunds-service --deployment-group-name staging --region ${{ env.AWS_REGION }} --include-only-statuses "InProgress" --query "deployments[0]" --output text)
+            
+            if [ -n "$ROLLBACK_ID" ]; then
+              aws deploy wait deployment-successful --deployment-id $ROLLBACK_ID --region ${{ env.AWS_REGION }}
+              echo "Rollback completed successfully."
+            else
+              echo "No active rollback found. Please check AWS CodeDeploy console."
+            fi
+          else
+            echo "No deployment ID found. Manual investigation required."
+          fi
+      
+      # Send notification to Slack
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "channel": "${{ env.SLACK_CHANNEL }}",
+              "username": "GitHub Actions",
+              "text": "✅ Successfully deployed Refunds Service to Staging - Build ${{ github.run_number }} (Commit: ${{ github.sha }})",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ *Successfully deployed Refunds Service to Staging*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Build:* ${{ github.run_number }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:* ${{ steps.version.outputs.semver }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:* <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.version.outputs.short_sha }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Deployed by:* ${{ github.actor }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Staging"
+                      },
+                      "url": "https://staging.brik-refunds.example.com"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "channel": "${{ env.SLACK_CHANNEL }}",
+              "username": "GitHub Actions",
+              "text": "❌ Failed to deploy Refunds Service to Staging - Build ${{ github.run_number }} (Commit: ${{ github.sha }})",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ *Failed to deploy Refunds Service to Staging*\nAutomatic rollback has been triggered."
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Build:* ${{ github.run_number }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:* ${{ steps.version.outputs.semver || 'N/A' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:* <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.version.outputs.short_sha || github.sha }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:* ${{ github.actor }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
