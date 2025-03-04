@@ -1,0 +1,32 @@
+# Rules that apply to all web crawlers
+User-agent: *
+Disallow: /pike/
+Disallow: /barracuda/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /settings/
+Allow: /
+Allow: /login
+Allow: /error
+Allow: /not-found
+Allow: /unauthorized
+
+# Disallow all bots from admin areas
+User-agent: Googlebot
+Disallow: /pike/
+Disallow: /barracuda/
+
+# Disallow archive.org from archiving the site
+User-agent: archive.org_bot
+Disallow: /
+
+# Disallow all bots from specific paths
+User-agent: *
+Disallow: /*?*
+Disallow: /*/refund/*
+Disallow: /*/bank-account/*
+Disallow: /*/parameter/*
+Disallow: /*/report/*
+
+# Sitemap location
+# Sitemap: https://example.com/sitemap.xml
