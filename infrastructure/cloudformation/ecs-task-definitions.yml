@@ -1,0 +1,577 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Refunds Service ECS task definitions'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - test
+      - staging
+      - production
+    Description: Deployment environment
+
+  ECRRepositoryUri:
+    Type: String
+    Description: Base URI for the ECR repository where container images are stored
+
+  ImageTag:
+    Type: String
+    Default: latest
+    Description: Tag for container images
+
+  ExecutionRoleArn:
+    Type: String
+    Description: ARN of the ECS task execution role
+
+  TaskRoleArn:
+    Type: String
+    Description: ARN of the ECS task role
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, production]
+
+Resources:
+  # Refund API Service Task Definition
+  RefundAPIServiceTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: refund-api-service
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: refund-api-service
+          Image: !Sub "${ECRRepositoryUri}/refund-api-service:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: refund-api-service
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: JWT_SECRET
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/jwt-secret-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/refund-api-service"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Refund Request Manager Task Definition
+  RefundRequestManagerTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: refund-request-manager
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '2048'  # 2 vCPU
+      Memory: '4096'  # 4 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: refund-request-manager
+          Image: !Sub "${ECRRepositoryUri}/refund-request-manager:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: refund-request-manager
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: SQS_URL
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/sqs-url-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/refund-request-manager"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Gateway Integration Service Task Definition
+  GatewayIntegrationServiceTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: gateway-integration-service
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: gateway-integration-service
+          Image: !Sub "${ECRRepositoryUri}/gateway-integration-service:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: gateway-integration-service
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: STRIPE_API_KEY
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/stripe-api-key-??????"
+            - Name: ADYEN_API_KEY
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/adyen-api-key-??????"
+            - Name: FISERV_API_KEY
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/fiserv-api-key-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/gateway-integration-service"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Parameter Resolution Service Task Definition
+  ParameterResolutionServiceTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: parameter-resolution-service
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '512'  # 0.5 vCPU
+      Memory: '1024'  # 1 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: parameter-resolution-service
+          Image: !Sub "${ECRRepositoryUri}/parameter-resolution-service:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: parameter-resolution-service
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/parameter-resolution-service"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Compliance Engine Task Definition
+  ComplianceEngineTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: compliance-engine
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: compliance-engine
+          Image: !Sub "${ECRRepositoryUri}/compliance-engine:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: compliance-engine
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/compliance-engine"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Approval Workflow Engine Task Definition
+  ApprovalWorkflowEngineTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: approval-workflow-engine
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: approval-workflow-engine
+          Image: !Sub "${ECRRepositoryUri}/approval-workflow-engine:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: approval-workflow-engine
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: SQS_URL
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/sqs-url-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/approval-workflow-engine"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Bank Account Manager Task Definition
+  BankAccountManagerTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: bank-account-manager
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: bank-account-manager
+          Image: !Sub "${ECRRepositoryUri}/bank-account-manager:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: bank-account-manager
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: KMS_KEY_ID
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/kms-key-id-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/bank-account-manager"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Notification Service Task Definition
+  NotificationServiceTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: notification-service
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '1024'  # 1 vCPU
+      Memory: '2048'  # 2 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: notification-service
+          Image: !Sub "${ECRRepositoryUri}/notification-service:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: notification-service
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: SQS_URL
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/sqs-url-??????"
+            - Name: SES_SENDER_EMAIL
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/ses-sender-email-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/notification-service"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+  # Reporting & Analytics Engine Task Definition
+  ReportingAnalyticsEngineTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: reporting-analytics-engine
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '2048'  # 2 vCPU
+      Memory: '4096'  # 4 GB
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: reporting-analytics-engine
+          Image: !Sub "${ECRRepositoryUri}/reporting-analytics-engine:${ImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: SERVICE_NAME
+              Value: reporting-analytics-engine
+            - Name: LOG_LEVEL
+              Value: !If [IsProduction, "INFO", "DEBUG"]
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/mongodb-uri-??????"
+            - Name: REDIS_URI
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/redis-uri-??????"
+            - Name: S3_BUCKET
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Environment}/refund-service/s3-bucket-??????"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Sub "/ecs/${Environment}/reporting-analytics-engine"
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: RefundService
+
+Outputs:
+  RefundAPIServiceTaskDefinition:
+    Description: ARN of the Refund API Service Task Definition
+    Value: !Ref RefundAPIServiceTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundAPIServiceTaskDefinition"
+
+  RefundRequestManagerTaskDefinition:
+    Description: ARN of the Refund Request Manager Task Definition
+    Value: !Ref RefundRequestManagerTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundRequestManagerTaskDefinition"
+
+  GatewayIntegrationServiceTaskDefinition:
+    Description: ARN of the Gateway Integration Service Task Definition
+    Value: !Ref GatewayIntegrationServiceTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-GatewayIntegrationServiceTaskDefinition"
+
+  ParameterResolutionServiceTaskDefinition:
+    Description: ARN of the Parameter Resolution Service Task Definition
+    Value: !Ref ParameterResolutionServiceTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-ParameterResolutionServiceTaskDefinition"
+
+  ComplianceEngineTaskDefinition:
+    Description: ARN of the Compliance Engine Task Definition
+    Value: !Ref ComplianceEngineTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-ComplianceEngineTaskDefinition"
+
+  ApprovalWorkflowEngineTaskDefinition:
+    Description: ARN of the Approval Workflow Engine Task Definition
+    Value: !Ref ApprovalWorkflowEngineTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-ApprovalWorkflowEngineTaskDefinition"
+
+  BankAccountManagerTaskDefinition:
+    Description: ARN of the Bank Account Manager Task Definition
+    Value: !Ref BankAccountManagerTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-BankAccountManagerTaskDefinition"
+
+  NotificationServiceTaskDefinition:
+    Description: ARN of the Notification Service Task Definition
+    Value: !Ref NotificationServiceTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-NotificationServiceTaskDefinition"
+
+  ReportingAnalyticsEngineTaskDefinition:
+    Description: ARN of the Reporting & Analytics Engine Task Definition
+    Value: !Ref ReportingAnalyticsEngineTaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-ReportingAnalyticsEngineTaskDefinition"
