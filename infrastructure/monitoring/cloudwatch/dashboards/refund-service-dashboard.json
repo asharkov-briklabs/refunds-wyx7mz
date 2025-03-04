@@ -1,0 +1,929 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 24,
+      "height": 1,
+      "properties": {
+        "markdown": "# Refund Service Dashboard\nOverview of service health, performance metrics, and business KPIs for the Refund Service"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 1,
+      "width": 6,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/ECS",
+            "CPUUtilization",
+            "ServiceName",
+            "refund-api-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "CPUUtilization",
+            "ServiceName",
+            "refund-request-manager",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "CPUUtilization",
+            "ServiceName",
+            "gateway-integration-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "CPUUtilization",
+            "ServiceName",
+            "parameter-resolution-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "CPU Utilization by Service",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100,
+            "label": "Percent",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "CPU Warning",
+              "value": 70,
+              "color": "#ff9900"
+            },
+            {
+              "label": "CPU Critical",
+              "value": 90,
+              "color": "#d13212"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 6,
+      "y": 1,
+      "width": 6,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/ECS",
+            "MemoryUtilization",
+            "ServiceName",
+            "refund-api-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "MemoryUtilization",
+            "ServiceName",
+            "refund-request-manager",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "MemoryUtilization",
+            "ServiceName",
+            "gateway-integration-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "AWS/ECS",
+            "MemoryUtilization",
+            "ServiceName",
+            "parameter-resolution-service",
+            "ClusterName",
+            "refund-service-cluster",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Memory Utilization by Service",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100,
+            "label": "Percent",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Memory Warning",
+              "value": 70,
+              "color": "#ff9900"
+            },
+            {
+              "label": "Memory Critical",
+              "value": 85,
+              "color": "#d13212"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 1,
+      "width": 6,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/SQS",
+            "ApproximateNumberOfMessagesVisible",
+            "QueueName",
+            "refund-request-queue",
+            {
+              "stat": "Maximum"
+            }
+          ],
+          [
+            "AWS/SQS",
+            "ApproximateNumberOfMessagesVisible",
+            "QueueName",
+            "gateway-processing-queue",
+            {
+              "stat": "Maximum"
+            }
+          ],
+          [
+            "AWS/SQS",
+            "ApproximateNumberOfMessagesVisible",
+            "QueueName",
+            "notification-queue",
+            {
+              "stat": "Maximum"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "SQS Queue Depth",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Messages",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Queue Warning",
+              "value": 1000,
+              "color": "#ff9900"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 18,
+      "y": 1,
+      "width": 6,
+      "height": 6,
+      "properties": {
+        "view": "pie",
+        "metrics": [
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "RefundAPI",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "RefundRequestManager",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "GatewayIntegration",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "ApprovalWorkflow",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "BankAccountManager",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ServiceHealth",
+            "Service",
+            "ParameterResolution",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Service Health (1 = Healthy)"
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 7,
+      "width": 24,
+      "height": 1,
+      "properties": {
+        "markdown": "## API Performance"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "ApiResponseTime",
+            "Endpoint",
+            "CreateRefund",
+            {
+              "stat": "p95"
+            }
+          ],
+          [
+            "RefundService",
+            "ApiResponseTime",
+            "Endpoint",
+            "GetRefund",
+            {
+              "stat": "p95"
+            }
+          ],
+          [
+            "RefundService",
+            "ApiResponseTime",
+            "Endpoint",
+            "ListRefunds",
+            {
+              "stat": "p95"
+            }
+          ],
+          [
+            "RefundService",
+            "ApiResponseTime",
+            "Endpoint",
+            "UpdateRefund",
+            {
+              "stat": "p95"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "API Response Time (p95)",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Milliseconds",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "SLA Breach",
+              "value": 500,
+              "color": "#d13212"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "RequestCount",
+            "Endpoint",
+            "CreateRefund",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RequestCount",
+            "Endpoint",
+            "GetRefund",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RequestCount",
+            "Endpoint",
+            "ListRefunds",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RequestCount",
+            "Endpoint",
+            "UpdateRefund",
+            {
+              "stat": "Sum"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "API Request Volume",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Count",
+            "showUnits": false
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "ErrorRate",
+            "Endpoint",
+            "CreateRefund",
+            {
+              "stat": "Average",
+              "period": 300
+            }
+          ],
+          [
+            "RefundService",
+            "ErrorRate",
+            "Endpoint",
+            "GetRefund",
+            {
+              "stat": "Average",
+              "period": 300
+            }
+          ],
+          [
+            "RefundService",
+            "ErrorRate",
+            "Endpoint",
+            "ListRefunds",
+            {
+              "stat": "Average",
+              "period": 300
+            }
+          ],
+          [
+            "RefundService",
+            "ErrorRate",
+            "Endpoint",
+            "UpdateRefund",
+            {
+              "stat": "Average",
+              "period": 300
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "API Error Rate",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100,
+            "label": "Percent",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Critical",
+              "value": 1,
+              "color": "#d13212"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 14,
+      "width": 24,
+      "height": 1,
+      "properties": {
+        "markdown": "## Gateway Integration Performance"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "GatewayResponseTime",
+            "Gateway",
+            "Stripe",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "GatewayResponseTime",
+            "Gateway",
+            "Adyen",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "GatewayResponseTime",
+            "Gateway",
+            "Fiserv",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Gateway Response Time",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Milliseconds",
+            "showUnits": false
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "GatewaySuccessRate",
+            "Gateway",
+            "Stripe",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "GatewaySuccessRate",
+            "Gateway",
+            "Adyen",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "GatewaySuccessRate",
+            "Gateway",
+            "Fiserv",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Gateway Success Rate",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100,
+            "label": "Percent",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Critical",
+              "value": 98,
+              "color": "#d13212"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 21,
+      "width": 24,
+      "height": 1,
+      "properties": {
+        "markdown": "## Business Metrics"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 22,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": true,
+        "metrics": [
+          [
+            "RefundService",
+            "RefundCount",
+            "RefundMethod",
+            "ORIGINAL_PAYMENT",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RefundCount",
+            "RefundMethod",
+            "BALANCE",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RefundCount",
+            "RefundMethod",
+            "OTHER",
+            {
+              "stat": "Sum"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Refund Requests by Method",
+        "period": 3600,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Count",
+            "showUnits": false
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 22,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": true,
+        "metrics": [
+          [
+            "RefundService",
+            "RefundVolume",
+            "Status",
+            "COMPLETED",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RefundVolume",
+            "Status",
+            "PROCESSING",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RefundVolume",
+            "Status",
+            "FAILED",
+            {
+              "stat": "Sum"
+            }
+          ],
+          [
+            "RefundService",
+            "RefundVolume",
+            "Status",
+            "PENDING_APPROVAL",
+            {
+              "stat": "Sum"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Refund Volume by Status",
+        "period": 3600,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "USD",
+            "showUnits": true
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 22,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "RefundService",
+            "ProcessingTime",
+            "RefundMethod",
+            "ORIGINAL_PAYMENT",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ProcessingTime",
+            "RefundMethod",
+            "BALANCE",
+            {
+              "stat": "Average"
+            }
+          ],
+          [
+            "RefundService",
+            "ProcessingTime",
+            "RefundMethod",
+            "OTHER",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Average Refund Processing Time",
+        "period": 3600,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Seconds",
+            "showUnits": false
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 28,
+      "width": 24,
+      "height": 1,
+      "properties": {
+        "markdown": "## Database and Cache Performance"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 29,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/DocDB",
+            "DatabaseConnections",
+            "DBClusterIdentifier",
+            "refund-service-mongodb",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "MongoDB Connections",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Count",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Warning",
+              "value": 500,
+              "color": "#ff9900"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 29,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/ElastiCache",
+            "CurrConnections",
+            "CacheClusterId",
+            "refund-service-redis",
+            {
+              "stat": "Maximum"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Redis Connections",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "label": "Count",
+            "showUnits": false
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 29,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [
+            "AWS/ElastiCache",
+            "CacheHitRate",
+            "CacheClusterId",
+            "refund-service-redis",
+            {
+              "stat": "Average"
+            }
+          ]
+        ],
+        "region": "${AWS::Region}",
+        "title": "Redis Cache Hit Rate",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 100,
+            "label": "Percent",
+            "showUnits": false
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Warning",
+              "value": 70,
+              "color": "#ff9900"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
