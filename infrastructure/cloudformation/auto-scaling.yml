@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Auto Scaling Configuration for Refunds Service ECS Services'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - test
+      - staging
+      - production
+    Description: Deployment environment
+    
+  ClusterName:
+    Type: String
+    Description: Name of the ECS cluster
+    
+  RefundAPIServiceName:
+    Type: String
+    Description: Name of the Refund API Service
+    
+  RefundRequestManagerServiceName:
+    Type: String
+    Description: Name of the Refund Request Manager Service
+    
+  GatewayIntegrationServiceName:
+    Type: String
+    Description: Name of the Gateway Integration Service
+    
+  ParameterServiceName:
+    Type: String
+    Description: Name of the Parameter Resolution Service
+    
+  SQSQueueName:
+    Type: String
+    Description: Name of the SQS queue for RefundRequestManager
+    
+  RefundAPIServiceTargetGroupResourceLabel:
+    Type: String
+    Description: Resource label (loadBalancer/targetGroup) for Refund API Service ALB metric
+    
+  GatewayIntegrationServiceTargetGroupResourceLabel:
+    Type: String
+    Description: Resource label (loadBalancer/targetGroup) for Gateway Integration Service ALB metric
+
+Resources:
+  # Scaling Targets
+  RefundAPIServiceScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub "service/${ClusterName}/${RefundAPIServiceName}"
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 3
+      MaxCapacity: 10
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      
+  RefundRequestManagerScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub "service/${ClusterName}/${RefundRequestManagerServiceName}"
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 2
+      MaxCapacity: 8
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      
+  GatewayIntegrationServiceScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub "service/${ClusterName}/${GatewayIntegrationServiceName}"
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 2
+      MaxCapacity: 6
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      
+  ParameterServiceScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub "service/${ClusterName}/${ParameterServiceName}"
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 2
+      MaxCapacity: 4
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+  
+  # CPU-based scaling policies
+  RefundAPIServiceCPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: RefundAPIServiceCPUScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref RefundAPIServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        
+  RefundRequestManagerCPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: RefundRequestManagerCPUScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref RefundRequestManagerScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        
+  GatewayIntegrationServiceCPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: GatewayIntegrationServiceCPUScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref GatewayIntegrationServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        
+  ParameterServiceCPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ParameterServiceCPUScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ParameterServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+  
+  # SQS-based scaling policy for Refund Request Manager
+  RefundRequestManagerSQSScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: RefundRequestManagerSQSScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref RefundRequestManagerScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        CustomizedMetricSpecification:
+          MetricName: ApproximateNumberOfMessagesVisible
+          Namespace: AWS/SQS
+          Dimensions:
+            - Name: QueueName
+              Value: !Ref SQSQueueName
+          Statistic: Average
+        TargetValue: 1000.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+  
+  # Request count-based scaling policy for Refund API Service
+  RefundAPIServiceRequestCountScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: RefundAPIServiceRequestCountScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref RefundAPIServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Ref RefundAPIServiceTargetGroupResourceLabel
+        TargetValue: 50.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        
+  # Request count-based scaling policy for Gateway Integration Service
+  GatewayIntegrationServiceRequestScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: GatewayIntegrationServiceRequestScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref GatewayIntegrationServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Ref GatewayIntegrationServiceTargetGroupResourceLabel
+        TargetValue: 50.0
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+
+Outputs:
+  RefundAPIServiceCPUScalingPolicyARN:
+    Description: ARN of the CPU-based scaling policy for Refund API Service
+    Value: !Ref RefundAPIServiceCPUScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundAPIServiceCPUScalingPolicyARN"
+      
+  RefundAPIServiceRequestCountScalingPolicyARN:
+    Description: ARN of the request count-based scaling policy for Refund API Service
+    Value: !Ref RefundAPIServiceRequestCountScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundAPIServiceRequestCountScalingPolicyARN"
+      
+  RefundRequestManagerCPUScalingPolicyARN:
+    Description: ARN of the CPU-based scaling policy for Refund Request Manager
+    Value: !Ref RefundRequestManagerCPUScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundRequestManagerCPUScalingPolicyARN"
+      
+  RefundRequestManagerSQSScalingPolicyARN:
+    Description: ARN of the SQS-based scaling policy for Refund Request Manager
+    Value: !Ref RefundRequestManagerSQSScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-RefundRequestManagerSQSScalingPolicyARN"
+      
+  GatewayIntegrationServiceCPUScalingPolicyARN:
+    Description: ARN of the CPU-based scaling policy for Gateway Integration Service
+    Value: !Ref GatewayIntegrationServiceCPUScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-GatewayIntegrationServiceCPUScalingPolicyARN"
+      
+  GatewayIntegrationServiceRequestScalingPolicyARN:
+    Description: ARN of the request count-based scaling policy for Gateway Integration Service
+    Value: !Ref GatewayIntegrationServiceRequestScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-GatewayIntegrationServiceRequestScalingPolicyARN"
+      
+  ParameterServiceCPUScalingPolicyARN:
+    Description: ARN of the CPU-based scaling policy for Parameter Resolution Service
+    Value: !Ref ParameterServiceCPUScalingPolicy
+    Export:
+      Name: !Sub "${AWS::StackName}-ParameterServiceCPUScalingPolicyARN"
