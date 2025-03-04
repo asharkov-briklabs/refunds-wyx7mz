@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- LD1: Set character set to UTF-8 for proper text encoding -->
+    <meta charset="utf-8" />
+
+    <!-- LD1: Link to favicon for website icon in browser tabs -->
+    <link rel="icon" href="./favicon.ico" /> <!-- Import: ./public/favicon.ico -->
+
+    <!-- LD1: Set viewport for responsive design across devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- LD1: Define theme color for browser UI -->
+    <meta name="theme-color" content="#000000" />
+
+    <!-- LD1: Link to web app manifest for PWA (Progressive Web App) support -->
+    <link rel="manifest" href="./manifest.json" /> <!-- Import: ./public/manifest.json -->
+
+    <!-- LD1: Set apple touch icon for iOS devices -->
+    <link rel="apple-touch-icon" href="./logo192.png" /> <!-- Import: ./public/logo192.png -->
+
+    <!-- LD1: Define meta description for SEO -->
+    <meta
+      name="description"
+      content="Web interface for managing refunds within the Brik platform"
+    />
+
+    <!-- LD1: Define title for the webpage -->
+    <title>Brik Refunds Service</title>
+  </head>
+  <body>
+    <!-- LD1: Add a 'noscript' tag to inform users that JavaScript is required -->
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+
+    <!-- LD1: Define the root DOM element where React will mount the application -->
+    <div id="root"></div>
+
+    <!-- LD1: Import the main JavaScript entry point -->
+    <script type="module" src="./src/index.tsx"></script> <!-- Import: ./src/index.tsx -->
+  </body>
+</html>
